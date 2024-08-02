@@ -17,5 +17,7 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    'no-used-vars':['error',{argsIgnorePattern:req|res|next|val}],
   },
+  
 }
