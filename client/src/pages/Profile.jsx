@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   getStorage,
   uploadBytesResumable,
@@ -7,14 +7,22 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 import { app } from "../firebase";
+import {
+  updateUserStart,
+  updateUserFailure,
+  updateUserSuccess,
+} from "../redux/user/userSlice";
+
 export default function Profile() {
   const fileRef = useRef(null);
   const [image, setImage] = useState(undefined);
   const [imagePercentage, setImagePercentage] = useState(0);
   const [imageError, setImageError] = useState(false);
-  const { currentUser } = useSelector((state) => state.user);
+  const { currentUser, loading, error } = useSelector((state) => state.user);
   const [formData, setFormData] = useState({});
-  
+  const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const dispatch = useDispatch();
   useEffect(() => {
     if (image) {
       handleFileUpload(image);
@@ -44,10 +52,38 @@ export default function Profile() {
     );
     console.log(image);
   };
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      dispatch(updateUserStart());
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (data.success === false) {
+        dispatch(updateUserFailure(data));
+      }
+      dispatch(updateUserSuccess(data));
+      setUpdateSuccess(true);
+    } catch (error) {
+      dispatch(updateUserFailure(data));
+    }
+  };
+  const handlePassword = (e) => {
+    e.preventDefault();
+    setShowPassword(!showPassword);
+  }
   return (
     <div className="p-3 max-w-lg mx-auto">
       <h1 className="test-3xl font-semibold text-center my-7">Profile</h1>
-      <form className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="file"
           ref={fileRef}
@@ -61,17 +97,19 @@ export default function Profile() {
           className="h-24 w-24 self-center cursor-pointer rounded-full object-cover mt-2"
           onClick={() => fileRef.current.click()}
         />
-         <p className='text-sm self-center'>
+        <p className="text-sm self-center">
           {imageError ? (
-            <span className='text-red-700'>
+            <span className="text-red-700">
               Error uploading image (file size must be less than 2 MB)
             </span>
           ) : imagePercentage > 0 && imagePercentage < 100 ? (
-            <span className='text-slate-700'>{`Uploading: ${imagePercent} %`}</span>
+            <span className="text-slate-700">{`Uploading: ${imagePercentage} %`}</span>
           ) : imagePercentage === 100 ? (
-            <span className='text-green-700'>Image uploaded successfully</span>
+                <span className="text-green-700">
+                  Image uploaded successfully
+                </span>
           ) : (
-            ''
+            ""
           )}
         </p>
         <input
@@ -80,6 +118,7 @@ export default function Profile() {
           id="username"
           placeholder="Username"
           className="bg-slate-100 rounded-lg p-3"
+          onChange={handleChange}
         />
         <input
           defaultValue={currentUser.email}
@@ -87,21 +126,30 @@ export default function Profile() {
           id="email"
           placeholder="Email"
           className="bg-slate-100 rounded-lg p-3"
+          onChange={handleChange}
         />
+        <div className="flex">
         <input
-          type="text"
+          type={showPassword?"text":"password"}
           id="password"
           placeholder="Password"
           className="bg-slate-100 rounded-lg p-3"
-        />
+          onChange={handleChange}
+          />
+          <div className="text-green-600 rounded-lg cursor-pointer" onClick={handlePassword}>{`<--`}</div>
+          </div>
         <button className="bg-slate-700 text-white p-3 rounded-lg uppercase hover:opacity-95 disabled:opacity-80">
-          update
+          {loading ? "Loading" : "Update"}
         </button>
-        <div className="flex justify-between mt-5">
-          <span className="text-red-700 cursor-pointer">Delete Account</span>
-          <span className="text-red-700  cursor-pointer">Sign out</span>
-        </div>
       </form>
+      <div className="flex justify-between mt-5">
+        <span className="text-red-700 cursor-pointer">Delete Account</span>
+        <span className="text-red-700  cursor-pointer">Sign out</span>
+      </div>
+      <p className="text-red-700 mt-5">{error && "Something went wrong!"}</p>
+      <p className="text-green-700 mt-5">
+        {updateSuccess && "User is updated successfully!"}
+      </p>
     </div>
   );
 }
