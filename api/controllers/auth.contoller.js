@@ -23,13 +23,14 @@ export const signin = async (req, res, next) => {
     if (!validUser) return next(errorHandler(404, "User not found"));
 
     const isValidPassword = bcryptjs.compareSync(password, validUser.password);
-    if (!isValidPassword) return next(errorHandler(401, "Wrong Credentials"));
+    if (password === "" || !isValidPassword)
+      return next(errorHandler(401, "Wrong Credentials"));
 
     const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET);
     const { password: hashedPassword, ...rest } = validUser._doc;
     const expiryDate = new Date(Date.now() + 3600000);
-    res 
-      .cookie("access_token", token, { httpOnly: true,expires:expiryDate })
+    res
+      .cookie("access_token", token, { httpOnly: true, expires: expiryDate })
       .status(200)
       .json(rest);
   } catch (error) {
@@ -44,7 +45,7 @@ export const google = async (req, res, next) => {
       const { password: hashedPassword, ...rest } = user._doc;
       const expiryDate = new Date(Date.now() + 3600000); // 1 hour
       res
-        .cookie('access_token', token, {
+        .cookie("access_token", token, {
           httpOnly: true,
           expires: expiryDate,
         })
@@ -57,7 +58,7 @@ export const google = async (req, res, next) => {
       const hashedPassword = bcryptjs.hashSync(generatedPassword, 10);
       const newUser = new User({
         username:
-          req.body.name.split(' ').join('').toLowerCase() +
+          req.body.name.split(" ").join("").toLowerCase() +
           Math.random().toString(36).slice(-8),
         email: req.body.email,
         password: hashedPassword,
@@ -68,7 +69,7 @@ export const google = async (req, res, next) => {
       const { password: hashedPassword2, ...rest } = newUser._doc;
       const expiryDate = new Date(Date.now() + 3600000); // 1 hour
       res
-        .cookie('access_token', token, {
+        .cookie("access_token", token, {
           httpOnly: true,
           expires: expiryDate,
         })
